@@ -22,8 +22,10 @@ def log_mean_exp(value, dim=0, keepdim=False):
 def kl_divergence(d1, d2, K=100):
     """Computes closed-form KL if available, else computes a MC estimate."""
     if (type(d1), type(d2)) in torch.distributions.kl._KL_REGISTRY:
+        print('using torch kl')
         return torch.distributions.kl_divergence(d1, d2)
     else:
+        print('estimating')
         samples = d1.rsample(torch.Size([K]))
         print('not torch in kl')
         return (d1.log_prob(samples) - d2.log_prob(samples)).mean(0)

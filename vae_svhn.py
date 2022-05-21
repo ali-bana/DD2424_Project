@@ -16,11 +16,11 @@ fBase = 32  # base size of filter channels
 
 
 # Classes
-class Enc(nn.Module):
+class Enc_SVHN(nn.Module):
     """ Generate latent parameters for SVHN image data. """
 
     def __init__(self, latent_dim):
-        super(Enc, self).__init__()
+        super(Enc_SVHN, self).__init__()
         self.enc = nn.Sequential(
             # input size: 3 x 32 x 32
             nn.Conv2d(imgChans, fBase, 4, 2, 1, bias=True),
@@ -40,14 +40,14 @@ class Enc(nn.Module):
     def forward(self, x):
         e = self.enc(x)
         lv = self.c2(e).squeeze()
-        return self.c1(e).squeeze(), F.softmax(lv, dim=-1) * lv.size(-1) + 1e-6
+        return self.c1(e).squeeze(), torch.exp(lv)
 
 
-class Dec(nn.Module):
+class Dec_SVHN(nn.Module):
     """ Generate a SVHN image given a sample from the latent space. """
 
     def __init__(self, latent_dim):
-        super(Dec, self).__init__()
+        super(Dec_SVHN, self).__init__()
         self.dec = nn.Sequential(
             nn.ConvTranspose2d(latent_dim, fBase * 4, 4, 1, 0, bias=True),
             nn.ReLU(True),
@@ -68,7 +68,7 @@ class Dec(nn.Module):
         out = self.dec(z.view(-1, *z.size()[-3:]))
         out = out.view(*z.size()[:-3], *out.size()[1:])
         # consider also predicting the length scale
-        return out, torch.tensor(0.75).to(z.device)  # mean, length scale
+        return out, torch.tensor(0.1).to(z.device)  # mean, length scale
 
 
 class SVHN(VAE):
@@ -76,24 +76,9 @@ class SVHN(VAE):
 
     def __init__(self, latent_dim):
         super(SVHN, self).__init__(
-            dist.Laplace,  # prior
-            dist.Laplace,  # likelihood
-            dist.Laplace,  # posterior
-            Enc(latent_dim),
-            Dec(latent_dim))
-        self._pz_params = nn.ParameterList([
-            nn.Parameter(torch.zeros(1, latent_dim),
-                         requires_grad=False),  # mu
-            nn.Parameter(torch.zeros(1, latent_dim),
-                         requires_grad=False)  # logvar
-        ])
-        self.modelName = 'svhn'
+            Enc_SVHN(latent_dim),
+            Dec_SVHN(latent_dim))
         self.dataSize = dataSize
-        self.llik_scaling = 1.
-
-    @property
-    def pz_params(self):
-        return self._pz_params[0], F.softmax(self._pz_params[1], dim=1) * self._pz_params[1].size(-1)
 
     def generate(self, runPath, epoch):
         N, K = 64, 9

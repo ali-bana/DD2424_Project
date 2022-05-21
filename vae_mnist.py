@@ -20,11 +20,11 @@ def extra_hidden_layer():
 
 
 # Classes
-class Enc(nn.Module):
+class Enc_MNIST(nn.Module):
     """ Generate latent parameters for MNIST image data. """
 
     def __init__(self, latent_dim):
-        super(Enc, self).__init__()
+        super(Enc_MNIST, self).__init__()
         modules = []
         modules.append(nn.Sequential(
             nn.Linear(data_dim, hidden_dim), nn.ReLU(True)))
@@ -35,14 +35,14 @@ class Enc(nn.Module):
     def forward(self, x):
         e = self.enc(x.view(*x.size()[:-3], -1))  # flatten data
         lv = self.fc22(e)
-        return self.fc21(e), F.softmax(lv, dim=-1) * lv.size(-1) + 1e-6
+        return self.fc21(e), torch.exp(lv)
 
 
-class Dec(nn.Module):
+class Dec_MNIST(nn.Module):
     """ Generate an MNIST image given a sample from the latent space. """
 
     def __init__(self, latent_dim):
-        super(Dec, self).__init__()
+        super(Dec_MNIST, self).__init__()
         modules = []
         modules.append(nn.Sequential(
             nn.Linear(latent_dim, hidden_dim), nn.ReLU(True)))
@@ -54,7 +54,7 @@ class Dec(nn.Module):
         d = torch.sigmoid(p.view(*z.size()[:-1], *dataSize))  # reshape data
         d = d.clamp(1e-6, 1 - 1e-6)
 
-        return d, torch.tensor(0.75).to(z.device)  # mean, length scale
+        return d, torch.tensor(0.1).to(z.device)  # mean, length scale
 
 
 class MNIST(VAE):
@@ -62,35 +62,10 @@ class MNIST(VAE):
 
     def __init__(self, latent_dim):
         super(MNIST, self).__init__(
-            dist.Laplace,  # prior
-            dist.Laplace,  # likelihood
-            dist.Laplace,  # posterior
-            Enc(latent_dim),
-            Dec(latent_dim))
-        self._pz_params = nn.ParameterList([
-            nn.Parameter(torch.zeros(1, latent_dim),
-                         requires_grad=False),  # mu
-            nn.Parameter(torch.zeros(1, latent_dim),
-                         requires_grad=False)  # logvar
-        ])
+            Enc_MNIST(latent_dim),
+            Dec_MNIST(latent_dim))
         self.modelName = 'mnist'
         self.dataSize = dataSize
-        self.llik_scaling = 1.
-
-    @property
-    def pz_params(self):
-        return self._pz_params[0], F.softmax(self._pz_params[1], dim=1) * self._pz_params[1].size(-1)
-
-    @staticmethod
-    def getDataLoaders(batch_size, shuffle=True, device="cuda"):
-        kwargs = {'num_workers': 1,
-                  'pin_memory': True} if device == "cuda" else {}
-        tx = transforms.ToTensor()
-        train = DataLoader(datasets.MNIST('../data', train=True, download=True, transform=tx),
-                           batch_size=batch_size, shuffle=shuffle, **kwargs)
-        test = DataLoader(datasets.MNIST('../data', train=False, download=True, transform=tx),
-                          batch_size=batch_size, shuffle=shuffle, **kwargs)
-        return train, test
 
     def generate(self, runPath, epoch):
         N, K = 64, 9
