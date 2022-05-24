@@ -1,7 +1,7 @@
 import torch
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
-from torchnet.dataset import TensorDataset, ResampleDataset, SplitDataset
+from torchnet.dataset import TensorDataset, ResampleDataset, SplitDataset, ShuffleDataset
 
 
 def _rand_match_on_idx(l1, idx1, l2, idx2, max_d=10000, dm=10):
@@ -60,6 +60,8 @@ def get_data_loader(batch_size, data_folder, validation_frac=0.05):
         ResampleDataset(test_svhn, lambda d,
                         i: idx_test_svhn[i], size=len(idx_test_svhn))
     ])
+
+    train_loader = ShuffleDataset(train_loader)
 
     val_loader = SplitDataset(
         train_loader, {'train': 1-validation_frac, 'val': validation_frac})

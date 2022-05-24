@@ -4,9 +4,10 @@ from mmvae import My_MMVAE
 from MMVAE_they import MMVAE
 from torch.utils.data import dataloader
 import torch
-from objectives import m_elbo, my_elbo
+from objectives import pvae_elbo, mmvae_elbo
 from tqdm import tqdm
 import numpy as np
+from pvae import PVAE
 torch.manual_seed(1377)
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -43,13 +44,20 @@ def train(model: torch.nn.Module, data_loader: dataloader, objective, epochs, le
 
 if __name__ == '__main__':
     # model1 = My_MMVAE(20)
-    model1 = My_MMVAE(20)
+    model = PVAE(20)
     # print(type(model))
     train_loader, test_loader, val_loader = get_data_loader(128, 'data/')
-    model = train(model1, train_loader, my_elbo, 10,
+    # model = train(model1, train_loader, mmvae_elbo, 10,
+    #               0.001, 'saves/mmvae', val_loader)
+    model = train(model, train_loader, pvae_elbo, 10,
                   0.001, 'saves/mmvae', val_loader)
     # for d in train_loader:
     #     data = [d[0][0], d[1][0]]
+    #     loss = -pvae_elbo(model, data)
+    #     loss1 = -mmvae_elbo(model1, data)
+    #     print(loss)
+    #     print(loss1)
+    #     break
 
     # #     # loss1 = -m_elbo(model, data, 1)
     # #     loss2 = -m_elbo(model1, data, 1)
